@@ -80,7 +80,39 @@ const bump=n=>{const o=rel;af=Math.max(0,Math.min(100,af+n));rel=af>=75?2:af>=45
 const IM={},av=(i,s)=>(i==0?MY.img:IM[i])?`<img class=av data-p=${i} src="${i==0?MY.img:IM[i]}" style="width:${s}px;height:${s}px">`:`<span class=av data-p=${i} style="width:${s}px;height:${s}px;background:${AV[i][0]};font-size:${s*.55|0}px">${AV[i][1]}</span>`;
 function ab(){return;const f=Math.max(0,AB)/AM;$("abf").style.width=f*100+"%";$("abf").style.background=f>.5?"#7be495":f>.25?"#ffd166":"#ff5d5d";$("abt").textContent=`AI ${f>.25?"":"절약 "}${Math.round(f*100)}%`}
 // AI 관문. ch: "chat"(내 메시지에 답장)·"auto"(선톡/잡담) → 채팅 ▶재생 ON일 때만 / "feed"(🔄새로고침)·"reply"(내 글·댓글에 달리는 댓글) → 유저 동작에서만 호출
-async function ask(p,ch){const chat=ch=="chat"||ch=="auto";if(!SM||!aiOn||Date.now()<pause||(chat&&(!CP||AB<1))||(ch=="auto"&&AB<AM*.25))throw 0;if(chat)AB--;try{return await Promise.race([SM.json(p,{cache:false}),new Promise((_,j)=>setTimeout(()=>j({code:"timeout"}),ch=="auto"?45000:25000))])}catch(e){if(e&&e.code=="rate_limited")pause=Date.now()+90000;throw e}}
+async function ask(p,ch){
+  const chat=ch==="chat"||ch==="auto";
+  if(!aiOn||Date.now()<pause||(chat&&(!CP||AB<1))||(ch==="auto"&&AB<AM*.25))throw 0;
+  if(chat)AB--;
+  try{
+    const message=typeof p==="string"?p:JSON.stringify(p);
+    const result=await Promise.race([
+      fetch("https://withered-dust-5730.ainjamong0715.workers.dev",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({message})
+      }).then(async r=>{
+        const data=await r.json();
+        if(!r.ok)throw new Error(data.error||"Gemini 요청 실패");
+        const text=data.reply||"";
+        try{
+          const clean=text.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"").trim();
+          return JSON.parse(clean);
+        }catch{
+          return {t:text};
+        }
+      }),
+      new Promise((_,reject)=>setTimeout(()=>reject({code:"timeout"}),ch==="auto"?45000:25000))
+    ]);
+    return result;
+  }catch(e){
+    if(e&&e.code==="rate_limited")pause=Date.now()+90000;
+    throw e;
+  }
+}
+
 const go=t=>document.querySelector(`nav button[data-t=${t}]`).click(),dot=t=>{if(!$(t).classList.contains("on"))$("d"+t).textContent=" ●"};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button,section").forEach(e=>e.classList.remove("on"));b.classList.add("on");$(b.dataset.t).classList.add("on");$("d"+b.dataset.t).textContent=""});
 function toast(h,k){const t=$("ts");t.innerHTML=h;t.style.display="block";t.onclick=()=>{t.style.display="none";if(k){go("s");$("rm").value=k;rM();fillR()}else go("d")};clearTimeout(t.x);t.x=setTimeout(()=>t.style.display="none",6000)}
